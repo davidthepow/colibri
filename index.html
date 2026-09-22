@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#a7f3d0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Colibrí">
+  <meta name="format-detection" content="telephone=no">
+  <title>Juego del Colibrí</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #b8f1dc;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(255,255,255,.72), transparent 23rem),
+        linear-gradient(145deg, #a7f3d0 0%, #dcfce3 52%, #bae6fd 100%);
+    }
+
+    #game-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      cursor: crosshair;
+    }
+
+    #game-container::before,
+    #game-container::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 46vmax;
+      height: 46vmax;
+      border-radius: 50%;
+      filter: blur(2px);
+      opacity: .24;
+      background: #fff;
+    }
+
+    #game-container::before { left: -20vmax; bottom: -24vmax; }
+    #game-container::after { right: -22vmax; top: -25vmax; }
+
+    #flowers-container { position: absolute; inset: 0; }
+
+    .flower {
+      position: absolute;
+      display: grid;
+      width: 64px;
+      height: 64px;
+      place-items: center;
+      font-size: clamp(2.65rem, 6vw, 3.35rem);
+      line-height: 1;
+      transform: translate(-50%, -50%) scale(0);
+      transition: transform .3s cubic-bezier(.175,.885,.32,1.275);
+      pointer-events: none;
+      will-change: transform;
+      filter: drop-shadow(0 5px 5px rgba(15,118,110,.16));
+    }
+
+    .flower-pop { animation: pop .4s ease-out forwards; }
+
+    @keyframes pop {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      50% { transform: translate(-50%, -50%) scale(1.5); opacity: .5; }
+      100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    }
+
+    #hummingbird {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 20;
+      width: clamp(66px, 12vw, 82px);
+      aspect-ratio: 1;
+      margin: -38px 0 0 -38px;
+      pointer-events: none;
+      will-change: transform;
+      filter: drop-shadow(0 7px 6px rgba(15,118,110,.2));
+    }
+
+    #bird-group { transform-origin: 50px 50px; }
+    .wing { transform-origin: 30px 30px; animation: flutter .055s infinite alternate linear; }
+    .wing-back { transform-origin: 30px 30px; animation: flutter-back .055s infinite alternate linear; }
+
+    @keyframes flutter {
+      from { transform: rotate(-10deg) scaleY(1); }
+      to { transform: rotate(20deg) scaleY(.2); }
+    }
+
+    @keyframes flutter-back {
+      from { transform: rotate(-5deg) scaleY(.9); }
+      to { transform: rotate(25deg) scaleY(.1); }
+    }
+
+    .glass-panel {
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(255,255,255,.68);
+      box-shadow: 0 8px 24px rgba(15,118,110,.12);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+
+    #score-panel {
+      position: absolute;
+      z-index: 40;
+      top: max(12px, env(safe-area-inset-top));
+      right: max(12px, env(safe-area-inset-right));
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 15px;
+      border-radius: 18px;
+      pointer-events: none;
+    }
+
+    .score-flower { font-size: 1.75rem; }
+    .score-copy { display: flex; flex-direction: column; }
+    .score-label { color: #0f766e; font-size: .67rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    #score-display { color: #134e4a; font-size: 1.55rem; font-weight: 900; line-height: 1; }
+
+    #instructions {
+      position: absolute;
+      z-index: 30;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      pointer-events: none;
+      transition: opacity .65s ease, visibility .65s;
+    }
+
+    #instructions.hidden { opacity: 0; visibility: hidden; }
+
+    .instructions-card {
+      width: min(88vw, 390px);
+      padding: 25px 23px;
+      border-radius: 26px;
+      text-align: center;
+    }
+
+    .instructions-card h1 { margin: 0 0 8px; color: #115e59; font-size: clamp(1.45rem, 6vw, 1.9rem); }
+    .instructions-card p { margin: 0; color: #0f766e; font-size: clamp(.98rem, 3.8vw, 1.08rem); line-height: 1.45; }
+    .device-hint { display: block; margin-top: 12px; color: #0d9488; font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+
+    @media (pointer: coarse) {
+      #game-container { cursor: default; }
+      .mouse-copy { display: none; }
+    }
+
+    @media (pointer: fine) {
+      .touch-copy { display: none; }
+    }
+
+    @media (max-height: 480px) and (orientation: landscape) {
+      #score-panel { padding: 7px 12px; }
+      .score-label { display: none; }
+      .instructions-card { padding: 17px 21px; }
+      .instructions-card h1 { font-size: 1.25rem; }
+      .instructions-card p { font-size: .9rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .wing, .wing-back { animation-duration: .13s; }
+      .flower { transition-duration: .01ms; }
+    }
+  </style>
+</head>
+<body>
+  <main id="game-container" aria-label="Juego del Colibrí">
+    <section id="score-panel" class="glass-panel" aria-live="polite">
+      <span class="score-flower" aria-hidden="true">🌸</span>
+      <span class="score-copy">
+        <span class="score-label">Néctar recolectado</span>
+        <span id="score-display">0</span>
+      </span>
+    </section>
+
+    <section id="instructions">
+      <div class="instructions-card glass-panel">
+        <h1>¡Guía al colibrí!</h1>
+        <p class="touch-copy">Toca y arrastra el dedo para llevarlo hasta las flores.</p>
+        <p class="mouse-copy">Mueve el ratón para llevarlo hasta las flores.</p>
+        <span class="device-hint">Empieza cuando quieras</span>
+      </div>
+    </section>
+
+    <div id="flowers-container" aria-hidden="true"></div>
+
+    <div id="hummingbird" aria-hidden="true">
+      <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <g id="bird-group">
+          <path class="wing-back" d="M45 45Q20 10 50 5Q60 15 45 45" fill="#4ade80" opacity=".8"/>
+          <path d="M35 60Q15 75 10 90Q25 80 40 65" fill="#0f766e"/>
+          <path d="M45 35Q65 30 75 45Q65 65 40 60Q30 50 45 35" fill="#0d9488"/>
+          <circle cx="68" cy="40" r="8" fill="#0d9488"/>
+          <circle cx="70" cy="38" r="1.5" fill="#fff"/>
+          <circle cx="70" cy="38" r=".8" fill="#000"/>
+          <path d="M75 40L98 48L75 43Z" fill="#333"/>
+          <path class="wing" d="M45 45Q10 20 40 10Q55 25 45 45" fill="#2dd4bf" opacity=".9"/>
+        </g>
+      </svg>
+    </div>
+  </main>
+
+  <script>
+    const gameContainer = document.querySelector('#game-container');
+    const flowersContainer = document.querySelector('#flowers-container');
+    const hummingbird = document.querySelector('#hummingbird');
+    const birdGroup = document.querySelector('#bird-group');
+    const scoreDisplay = document.querySelector('#score-display');
+    const instructions = document.querySelector('#instructions');
+
+    const MAX_FLOWERS = 5;
+    const FLOWER_EMOJIS = ['🌸', '🌺', '🌼', '🌻', '🌷'];
+    const TOUCH_VERTICAL_OFFSET = 72;
+
+    let score = 0;
+    let targetX = innerWidth / 2;
+    let targetY = innerHeight / 2;
+    let birdX = targetX;
+    let birdY = targetY;
+    let activeFlowers = [];
+    let hasStarted = false;
+    let lastDirection = 1;
+
+    function viewport() {
+      return {
+        width: window.visualViewport?.width || innerWidth,
+        height: window.visualViewport?.height || innerHeight
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function updateTarget(x, y, pointerType = 'mouse') {
+      const { width, height } = viewport();
+      const offset = pointerType === 'touch' ? TOUCH_VERTICAL_OFFSET : 0;
+      targetX = clamp(x, 32, width - 32);
+      targetY = clamp(y - offset, 52, height - 42);
+
+      if (!hasStarted) {
+        hasStarted = true;
+        instructions.classList.add('hidden');
+      }
+    }
+
+    function handlePointer(event) {
+      if (event.pointerType === 'touch' && event.type === 'pointermove' && event.buttons === 0) return;
+      updateTarget(event.clientX, event.clientY, event.pointerType);
+    }
+
+    gameContainer.addEventListener('pointerdown', (event) => {
+      gameContainer.setPointerCapture?.(event.pointerId);
+      handlePointer(event);
+    });
+    gameContainer.addEventListener('pointermove', handlePointer);
+    gameContainer.addEventListener('contextmenu', (event) => event.preventDefault());
+
+    function spawnFlower() {
+      if (activeFlowers.length >= MAX_FLOWERS) return;
+
+      const { width, height } = viewport();
+      const edge = Math.min(68, Math.max(44, width * .1));
+      const top = Math.max(88, edge);
+      const bottom = Math.max(58, edge);
+      const x = edge + Math.random() * Math.max(1, width - edge * 2);
+      const y = top + Math.random() * Math.max(1, height - top - bottom);
+      const rotation = Math.random() * 40 - 20;
+      const flowerEl = document.createElement('div');
+
+      flowerEl.className = 'flower';
+      flowerEl.textContent = FLOWER_EMOJIS[Math.floor(Math.random() * FLOWER_EMOJIS.length)];
+      flowerEl.style.left = `${x}px`;
+      flowerEl.style.top = `${y}px`;
+      flowerEl.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(0)`;
+      flowersContainer.appendChild(flowerEl);
+
+      requestAnimationFrame(() => {
+        flowerEl.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(1)`;
+      });
+
+      activeFlowers.push({ element: flowerEl, x, y, collected: false });
+    }
+
+    function collectFlower(flower, index) {
+      flower.collected = true;
+      score += 1;
+      scoreDisplay.textContent = score;
+      flower.element.classList.add('flower-pop');
+      activeFlowers.splice(index, 1);
+      navigator.vibrate?.(18);
+
+      setTimeout(() => flower.element.remove(), 400);
+      setTimeout(spawnFlower, 450 + Math.random() * 650);
+    }
+
+    function gameLoop() {
+      const ease = .105;
+      const deltaX = targetX - birdX;
+      const deltaY = targetY - birdY;
+      birdX += deltaX * ease;
+      birdY += deltaY * ease;
+
+      if (Math.abs(deltaX) > 4) lastDirection = deltaX < 0 ? -1 : 1;
+      const tilt = clamp(deltaY * .08, -18, 18);
+      hummingbird.style.transform = `translate3d(${birdX}px, ${birdY}px, 0)`;
+      birdGroup.style.transform = `scaleX(${lastDirection}) rotate(${tilt}deg)`;
+
+      const beakX = birdX + lastDirection * 29;
+      const beakY = birdY + 8;
+      const collectionRadius = 43;
+
+      for (let i = activeFlowers.length - 1; i >= 0; i -= 1) {
+        const flower = activeFlowers[i];
+        if (!flower.collected && Math.hypot(beakX - flower.x, beakY - flower.y) < collectionRadius) {
+          collectFlower(flower, i);
+        }
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function keepGameInBounds() {
+      const { width, height } = viewport();
+      targetX = clamp(targetX, 32, width - 32);
+      targetY = clamp(targetY, 52, height - 42);
+      birdX = clamp(birdX, 32, width - 32);
+      birdY = clamp(birdY, 52, height - 42);
+
+      activeFlowers.forEach((flower) => {
+        flower.x = clamp(flower.x, 48, width - 48);
+        flower.y = clamp(flower.y, 88, height - 48);
+        flower.element.style.left = `${flower.x}px`;
+        flower.element.style.top = `${flower.y}px`;
+      });
+    }
+
+    addEventListener('resize', keepGameInBounds);
+    window.visualViewport?.addEventListener('resize', keepGameInBounds);
+
+    for (let i = 0; i < MAX_FLOWERS; i += 1) setTimeout(spawnFlower, i * 160);
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
